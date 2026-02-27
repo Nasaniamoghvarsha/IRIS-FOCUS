@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-100 antialiased;
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+.glass-panel {
+  @apply bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/50 shadow-2xl;
+}
+
+/* Custom fade animations */
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
