@@ -1,5 +1,7 @@
 # IRIS FOCUS | 👁️ Desktop Anti-Procrastination Assistant
 
+![Iris Focus Screenshot](screenshots/Screenshot%202026-03-03%20154917.png)
+
 Iris Focus is a privacy-first, professional concentration assistant that uses advanced eye-tracking AI to help you stay focused on your work.
 
 ---
