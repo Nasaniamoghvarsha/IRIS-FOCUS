@@ -9,6 +9,7 @@ interface AudioControlsProps {
     setThreshold: (val: number) => void;
     loop: boolean;
     setLoop: (val: boolean) => void;
+    onUpload?: () => void;
 }
 
 export const AudioControls: React.FC<AudioControlsProps> = ({
@@ -18,11 +19,13 @@ export const AudioControls: React.FC<AudioControlsProps> = ({
     setThreshold,
     loop,
     setLoop,
+    onUpload,
 }) => {
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             audioController.loadAudio(file);
+            onUpload?.();
         }
     };
 

@@ -1,44 +1,53 @@
-# IRIS FOCUS 👁️🎵
+# IRIS FOCUS | 👁️ Desktop Anti-Procrastination Assistant
 
-A privacy-first, real-time concentration assistant that uses advanced eye-tracking to help you stay focused.
+Iris Focus is a privacy-first, professional concentration assistant that uses advanced eye-tracking AI to help you stay focused on your work.
 
 ---
 
-## 🎯 Project Overview
-Iris Focus monitors your attention via your webcam and automatically plays focusing music when you look away or lose concentration (e.g., using your phone, closing your eyes, or turning your head). As soon as you return focus to the screen, the music fades out seamlessly.
+## 🎯 The Iris Philosophy
+Iris Focus doesn't just block websites; it monitors your **actual attention**. If you look away from your work window, look at your phone, or close your eyes, Iris Focus triggers a gentle audio penalty (focus music). As soon as you return your gaze to the screen, the music fades away.
 
-### 🌟 Key Features
-- **Privacy First**: 100% on-device processing. No video or gaze data ever leaves your browser.
-- **Advanced Gaze Metrics**:
-    - **Head Pose Estimation**: Detects Yaw (horizontal) and Pitch (vertical) head rotation.
-    - **Blink & Eye Openness**: Measures eyelid distance (EAR) to detect closed eyes.
-    - **Precision Iris Tracking**: Sub-degree accuracy using normalized iris offset.
-    - **Mobile Usage Detection**: Specialized sensitivity for detecting downward gaze.
-- **Seamless Audio**: High-performance Audio API with smooth volume fading and browser autoplay bypass.
-- **Real-Time Debugging**: Integrated system panel for monitoring camera, audio, and tracking status.
+### 🌟 Desktop-Exclusive Features
+- **Focus Mode**: Locks your concentration by monitoring a specific target application (e.g., VS Code, Brave, Excel).
+- **Precision PID Targeting**: Identifies exactly which process you are in, ensuring zero confusion between similar apps.
+- **Auto-Pausing**: Intelligent enough to know when you are multitasking. Tracking pauses when you're in distraction apps, providing a flexible workflow.
+- **Stealth Engine**: Runs in a specialized "Always-Alive" mode that prevents Windows from suspending the tracking logic during concentration sessions.
 
 ## 🛠️ Tech Stack
-- **Frontend**: React (Vite) + TypeScript
-- **Styling**: Tailwind CSS v3
-- **AI/ML**: MediaPipe FaceMesh + TensorFlow.js
-- **Audio**: Custom AudioController with Volume Fading
+- **Framework**: Electron + React (Vite) + TypeScript
+- **Machine Learning**: MediaPipe FaceMesh (100% On-Device)
+- **Native Integration**: Windows PowerShell Bridge & P/Invoke (C# Native API)
+- **Styling**: Vanilla CSS v3 + Tailwind Utilities
 
-## 🚀 Getting Started
+---
 
-### Local Development
-1. Clone the repository.
+## 🏗️ Architecture & Flow
+Iris Focus combines web technologies with native Windows power. For a deep dive into how the camera detection, PID matching, and audio engine interact, check our documentation:
+
+👉 **[Internal Architecture & Flow Diagrams](docs/architecture_overview.md)**
+
+---
+
+## 🚀 Installation
+
+### Development Setup
+1. Clone the repository
 2. Install dependencies:
    ```bash
    npm install
    ```
-3. Run the development server:
+3. Run the development environment:
    ```bash
-   npm run dev
+   npm run electron:dev
    ```
-4. Open `http://localhost:5173` (or the port specified in your terminal).
 
-## 📄 License & Contributing
-This project is licensed under the **MIT License**. Check out `CONTRIBUTING.md` for guidelines on how to help improve Iris Focus!
+### Hardware Requirements
+- A standard Webcam (720p recommended).
+- Windows 10/11 (for full native focus features).
+
+## 📄 License & Privacy
+- **Privacy Core**: Iris Focus never records or uploads video. Landmarks are processed in RAM and discarded instantly.
+- **License**: MIT License.
 
 ---
-*Built with privacy and productivity in mind.*
+*Stay focused. Be exceptional.*

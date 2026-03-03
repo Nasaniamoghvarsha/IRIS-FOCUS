@@ -1,27 +1,13 @@
-/**
- * CameraView Component
- * 
- * Logic flow:
- * 1. Request Webcam access via getUserMedia.
- * 2. Dynamically load MediaPipe FaceMesh via CDN Fallback/Dynamic Import.
- * 3. Initialize FaceMesh with iris landmarks enabled.
- * 4. Run the high-frequency tracking loop using requestAnimationFrame.
- */
-
 import React, { useRef, useEffect } from 'react';
 import { checkGaze } from '../utils/gazeMath';
 
-// Purely dynamic/global access to avoid Vite SyntaxErrors with MediaPipe
+// Ultra-simple FaceMesh loader
 const getFaceMesh = async () => {
-    // 1. Check if already on window (from script tag)
     if ((window as any).FaceMesh) return (window as any).FaceMesh;
-
-    // 2. Try dynamic import
     try {
         const mp = await import('@mediapipe/face_mesh');
         return mp.FaceMesh || (mp as any).default?.FaceMesh || (window as any).FaceMesh;
-    } catch (e) {
-        console.warn("Dynamic import of MediaPipe failed, checking window...", e);
+    } catch {
         return (window as any).FaceMesh;
     }
 };
@@ -35,129 +21,122 @@ interface CameraViewProps {
 
 export const CameraView: React.FC<CameraViewProps> = ({ onGazeUpdate, isEnabled, onError, onStatusChange }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
     const faceMeshRef = useRef<any>(null);
-    const requestRef = useRef<number | null>(null);
+    const animationRef = useRef<number>(0);
+    const gazeUpdateRef = useRef(onGazeUpdate);
 
+    // Always keep the ref current to avoid stale closures in listeners
     useEffect(() => {
-        let isCancelled = false;
+        gazeUpdateRef.current = onGazeUpdate;
+    }, [onGazeUpdate]);
 
-        const initCamera = async () => {
-            if (!videoRef.current) return;
-            try {
-                onStatusChange?.("Requesting camera...");
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: "user", width: 640, height: 480 },
-                    audio: false,
-                });
+    // 1. Manage the Camera Stream
+    useEffect(() => {
+        if (!isEnabled) {
+            // STOP camera
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(t => t.stop());
+                streamRef.current = null;
+            }
+            if (videoRef.current) {
+                videoRef.current.srcObject = null;
+            }
+            onStatusChange?.("Camera OFF");
+            cancelAnimationFrame(animationRef.current);
+            return;
+        }
 
-                if (isCancelled) {
+        // START camera
+        let active = true;
+        onStatusChange?.("Requesting Camera...");
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 640, height: 480 } })
+            .then(stream => {
+                if (!active) {
                     stream.getTracks().forEach(t => t.stop());
                     return;
                 }
-
-                videoRef.current.srcObject = stream;
-                await videoRef.current.play();
-                onStatusChange?.("Camera active");
-            } catch (err: any) {
-                console.error("Camera initialization failed:", err);
-                onError?.(`Camera Error: ${err.message || 'Access denied'}`);
-            }
-        };
-
-        const initFaceMesh = async () => {
-            try {
-                onStatusChange?.("Loading MediaPipe...");
-                const FaceMeshClass = await getFaceMesh();
-
-                if (!FaceMeshClass) {
-                    throw new Error("FaceMesh library not found. Check internet connection.");
+                streamRef.current = stream;
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                    videoRef.current.play().catch(e => {
+                        console.warn("Play interrupted", e);
+                    });
                 }
-
-                onStatusChange?.("Initializing FaceMesh...");
-                const faceMeshInstance = new FaceMeshClass({
-                    locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-                });
-
-                faceMeshInstance.setOptions({
-                    maxNumFaces: 1,
-                    refineLandmarks: true,
-                    minDetectionConfidence: 0.5,
-                    minTrackingConfidence: 0.5,
-                });
-
-                faceMeshInstance.onResults((results: any) => {
-                    if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
-                        const { isLookingAtScreen } = checkGaze(results.multiFaceLandmarks[0]);
-                        onGazeUpdate(isLookingAtScreen);
-                        onStatusChange?.("Tracking active");
-                    } else {
-                        onGazeUpdate(false);
-                        onStatusChange?.("No face detected");
-                    }
-                });
-
-                faceMeshRef.current = faceMeshInstance;
-                onStatusChange?.("MediaPipe ready");
-            } catch (err: any) {
-                console.error("FaceMesh initialization failed:", err);
-                onError?.(`MediaPipe Error: ${err.message}`);
-            }
-        };
-
-        const runDetection = async () => {
-            if (videoRef.current && faceMeshRef.current && isEnabled) {
-                if (videoRef.current.readyState === 4) {
-                    try {
-                        await faceMeshRef.current.send({ image: videoRef.current });
-                    } catch (err) {
-                        console.error("Detection error:", err);
-                    }
-                }
-                requestRef.current = requestAnimationFrame(runDetection);
-            }
-        };
-
-        if (isEnabled) {
-            initCamera().then(() => {
-                if (!faceMeshRef.current) initFaceMesh();
-                runDetection();
+                onStatusChange?.("Camera ON");
+                startTracking();
+            })
+            .catch(err => {
+                console.error("Camera fail:", err);
+                onError?.("Camera Access Denied or Missing");
+                onStatusChange?.("Camera Error");
             });
-        } else {
-            onStatusChange?.("Idle");
-            if (videoRef.current?.srcObject) {
-                const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-                tracks.forEach(track => track.stop());
-                videoRef.current.srcObject = null;
-            }
-            if (requestRef.current) {
-                cancelAnimationFrame(requestRef.current);
-            }
-        }
 
         return () => {
-            isCancelled = true;
-            if (videoRef.current?.srcObject) {
-                const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
-                tracks.forEach(track => track.stop());
+            active = false;
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach(t => t.stop());
+                streamRef.current = null;
             }
-            if (requestRef.current) {
-                cancelAnimationFrame(requestRef.current);
-            }
+            cancelAnimationFrame(animationRef.current);
         };
-    }, [isEnabled, onGazeUpdate, onError, onStatusChange]);
+    }, [isEnabled]); // Only depend on isEnabled
+
+    // 2. Manage the Tracking
+    const startTracking = async () => {
+        if (!faceMeshRef.current) {
+            onStatusChange?.("Loading AI...");
+            const FM = await getFaceMesh();
+            if (!FM) {
+                onError?.("Failed to load FaceMesh");
+                return;
+            }
+
+            faceMeshRef.current = new FM({
+                locateFile: (f: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${f}`
+            });
+            faceMeshRef.current.setOptions({
+                maxNumFaces: 1,
+                refineLandmarks: true,
+                minDetectionConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            faceMeshRef.current.onResults((res: any) => {
+                if (res.multiFaceLandmarks && res.multiFaceLandmarks.length > 0) {
+                    const gaze = checkGaze(res.multiFaceLandmarks[0]);
+                    gazeUpdateRef.current(gaze.isLookingAtScreen);
+                }
+            });
+            onStatusChange?.("Tracking Active");
+        }
+
+        // Tracking loop
+        const loop = async () => {
+            if (videoRef.current && videoRef.current.readyState >= 2 && faceMeshRef.current && isEnabled) {
+                try {
+                    await faceMeshRef.current.send({ image: videoRef.current });
+                } catch (e) {
+                    // ignore send errors
+                }
+            }
+            animationRef.current = requestAnimationFrame(loop);
+        };
+        loop();
+    };
 
     return (
-        <div className="relative w-64 h-48 rounded-2xl overflow-hidden border-2 border-zinc-800 bg-zinc-900 shadow-2xl">
+        <div className="relative w-full aspect-[4/3] rounded-3xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-2xl">
             <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="absolute inset-0 w-full h-full object-cover grayscale opacity-50"
+                className={`w-full h-full object-cover transition-opacity duration-1000 ${isEnabled ? 'opacity-100' : 'opacity-0'}`}
             />
             {!isEnabled && (
-                <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80 backdrop-blur-sm">
-                    <span className="text-zinc-500 text-xs font-medium uppercase tracking-widest">Camera Off</span>
+                <div className="absolute inset-0 flex items-center justify-center text-zinc-600 font-bold uppercase tracking-widest text-sm">
+                    Camera OFF
                 </div>
             )}
         </div>

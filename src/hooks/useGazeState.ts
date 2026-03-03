@@ -37,9 +37,22 @@ export const useGazeState = (thresholdSeconds: number) => {
         }
     }, [thresholdSeconds]);
 
+    const stopMusic = useCallback(() => {
+        if (awayTimer.current) {
+            clearTimeout(awayTimer.current);
+            awayTimer.current = null;
+        }
+        if (isMusicPlayingRef.current) {
+            audioController.pauseWithFade();
+            setIsMusicPlaying(false);
+            isMusicPlayingRef.current = false;
+        }
+    }, []);
+
     return {
         isLookingAtScreen,
         isMusicPlaying,
-        updateGaze
+        updateGaze,
+        stopMusic
     };
 };
